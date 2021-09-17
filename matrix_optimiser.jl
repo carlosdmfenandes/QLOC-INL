@@ -1,137 +1,115 @@
+"Optimise matrix post selection process."
 
-using DelimitedFiles
 using Optim
 
 include("matrix_composer.jl")
+include("csvread.jl")
+include("post_selection_statistics.jl")
 
 const HOME = homedir()
 const PROJDIR = "$HOME/Documents/Quantum_Information"
 const DIM = 4
 const FILESDIR = "$PROJDIR/random_matrices/dim_$DIM"
-
-"Generate the matrix relating the polynomial coefficients to the generated angles."
-Lmat(n) = [i^j for i=0:n, j=0:n]
-
-"Calculate the coefficients given a list of an"
-function anglestocoefs(angles)
-    n=length(angles)
-
+const NUM = 2
 "Contains a list of functions and what to name the files
 this algorithm generates."
-num = "2"
 ang = pi / 4
+NPHOTONS=2
+NNONLIN=2
+ 
+"Determine the name of the file to import."
+csvname(dim, complex, suffix)="$FILESDIR/Unitary_2$(dim)$(complex)_example$suffix.csv"
+csvname(complex, suffix)=csvname(DIM, complex, suffix)
 
-vals_dict = Dict(
-    0 => (
-        "$PROJDIR/random_matrices/PS$(DIM)stats$num.csv",
-        "$PROJDIR/random_matrices/pp$DIM",
-        merit_func(DIM),
-    ),
-    1 => (
-        "$PROJDIR/random_matrices/PS$(DIM)stats_dev$num.csv",
-        "$PROJDIR/random_matrices/ps$(DIM)_dev",
-        merit_func_dev(DIM),
-    ),
-    2 => (
-        "$PROJDIR/random_matrices/PS$(DIM)stats_lprob$num.csv",
-        "$PROJDIR/random_matrices/ps$(DIM)_lprob",
-        merit_func_lprob(DIM, 0.1),
-    ),
-    3 => (
-        "$PROJDIR/random_matrices/PS$(DIM)stats_centre$num.csv",
-        "$PROJDIR/random_matrices/ps$(DIM)_centre",
-        merit_func_centre(DIM),
-    ),
-    4 => (
-        "$PROJDIR/random_matrices/PS$(DIM)stats_sides$num.csv",
-        "$PROJDIR/random_matrices/ps$(DIM)_sides",
-        merit_func_sides(DIM),
-    ),
-    5 => (
-        "$PROJDIR/random_matrices/PS$(DIM)stats_ang$num.csv",
-        "$PROJDIR/random_matrices/ps$(DIM)_ang",
-        merit_func_ang(DIM, ang, 0.01, 0.1),
-    ),
-    6 => (
-        "$PROJDIR/random_matrices/PS$(DIM)stats_exp$num.csv",
-        "$PROJDIR/random_matrices/ps$(DIM)_exp$num",
-        merit_func_exp(DIM, 100, 1),
-    ),
-    7 => (
-        "$PROJDIR/random_matrices/PS$(DIM)stats_dummy$num.csv",
-        "$PROJDIR/random_matrices/ps$(DIM)_dummy$num",
-        x -> abs2(tr(matrix_form(x, DIM))),
-    ),
-)
+"Determine the file path to export results."
+statspath(keyword, dim=DIM, dir=PROJDIR, uid=NUM)="$dir/random_matrices/ps$(dim)stats_$keyword$uid.csv"
 
-FILE, MATDIR, to_optimise = vals_dict[6]
+"Find the directory matrix to export."
+matdir(keyword, dim=DIM, dir=PROJDIR, uid=NUM)="$dir/random_matrices/ps$(dim)_$keyword$uid"
 
-"Short convinient function to condense our code."
-myread(file) = readdlm(file, ',', Float64)
-
-"Determine the name of the file to export."
-csvname(dim, complex, index) = "Unitary_2$(dim)$(complex)_example$index.csv"
-
-"Import a matrix from two csv files each containg the real and imaginary
- parts."
-function matread(rarg, iarg)
-    source_r = "$FILESDIR/$rarg"
-    source_i = "$FILESDIR/$iarg"
-    a = myread(source_r)
-    b = myread(source_i)
-    omat = a + im .* b
-end
-
-function writetofile(stream, index)
-    rpath = csvname(DIM, 'R', index)
-    ipath = csvname(DIM, 'I', index)
-    mat = matread(rpath, ipath)
-    res = optimize(to_optimise, argument_form(mat))
-    min = Optim.minimizer(res)
-    minmat = matrix_form(min, DIM)
-    p0m = p0(minmat)
-    p1m = p1(minmat)
-    p2m = p2(minmat)
-    expc = (abs(p0m) + abs(p1m) + abs(p2m)) / 3
-    var = ((abs(p0m) - expc)^2 + (abs(p1m) - expc)^2 + (abs(p2m) - expc)^2) / 3
-    relative_deviation = sqrt(var) / expc
-    nlarg = angle(p2m * p0m / p1m^2) / 2
-    prob = abs2(expc)
-    writedlm(stream, [index relative_deviation nlarg prob], ',')
-end
-
-function writetofile(stream1, stream2, index)
-    rpath = csvname(DIM, 'R', index)
-    ipath = csvname(DIM, 'I', index)
-    mat = matread(rpath, ipath)
-    res = optimize(merit_func(DIM), argument_form(mat))
-    min = Optim.minimizer(res)
-    minmat = matrix_form(min, DIM)
-    p0m = p0(minmat)
-    p1m = p1(minmat)
-    p2m = p2(minmat)
-    expc = (abs(p0m) + abs(p1m) + abs(p2m)) / 3
-    var = ((abs(p0m) - expc)^2 + (abs(p1m) - expc)^2 + (abs(p2m) - expc)^2) / 3
-    relative_deviation = sqrt(var) / expc
-    nlarg = angle(p2m * p0m / p1m^2) / 2
-    prob = abs2(expc)
-    writedlm(stream1, [index relative_deviation nlarg prob], ',')
-    writedlm(stream2, minmat, ',')
-end
-
-filestream = open(FILE, "w")
-try
-    for x = 1001:100000
-        #       matrix_filepath = "$MATDIR/$x.csv"
-        #       matrix_filestream = open(matrix_filepath, "w+")
-        #        try
-        #            writetofile(filestream, matrix_filestream, x)
-        writetofile(filestream, x)
-        #       finally
-        #            close(matrix_filestream)
-        #        end
+"Wrapper around optimize to convert matrices to parametrized form and back"
+function ps_optimizer(init_matrix, merit_function, function_args=(), optimizeargs...)
+    inits = argument_form(init_matrix)
+    result = optimize(inits, optimizeargs...) do x
+         merit_function(nsamplitudes(matrix_form(x), NNONLIN),
+                        function_args...)
     end
-finally
-    close(filestream)
+    return result
 end
-print("done.")
+function ps_optimizer(init_matrix, keyword::AbstractString, args...) 
+    ps_optimizer(init_matrix, MERIT_DICTS[keyword], args...) 
+end
+
+"""
+Extract the physically relevant results from an Optim.Optimization object 
+returned by ps_optimizer. 
+Return the minimal matrix and a vector containing the deviation form uniformity, 
+the non-linear angle and the intererometer's success probability.
+"""
+function ps_results(optimization)
+    min = Optim.minimizer(optimization)
+    minmat = matrix_form(min, DIM)
+    amplitudevec = nsamplitudes(minmat, NNONLIN) 
+    mean_amplitude = mean(abs.(amplitudevec))
+    deviation = std(amplitudevec, mean=mean_amplitude)
+    rel_dev = deviation / mean_amplitude
+    nonlinarg = anglestocoefs(angle.(amplitudevec))[NNONLIN]
+    succ_prob = abs2(mean_amplitude)
+    minmat, [rel_dev; nonlinarg; succ_prob]
+end
+
+"""
+Solve an optimization problem and write the results to a file. 
+Takes as input the csv files containing the real and imaginary parts of the input matrix and 
+a function to_optimize. Alternatively this function can be specified by an
+apropriate keyword as defined in the MERIT_DICTS dictionary in the \"post_selection_statistics.jl\" file.
+It can also pass additional arguments to the function to_optimize.
+The files to which the results are to be written must be specified by the stats_file and matrix_file 
+keywords.
+"""   
+function writetofile(real_path, imag_path, to_optimize,  args...; stats_file=devnull, matrix_file=devnull, prefix=nothing)
+    init_matrix = matread(real_path, imag_path)
+    optimres = ps_optimizer(init_matrix, to_optimize, args...)
+    minmat, data = ps_results(optimres)
+    if isnothing(prefix)
+        writedlm(stats_file, data, ',')
+    else 
+        writedlm(stats_file, [prefix; data], ',')
+        println(matrix_file, prefix)
+    end
+    writedlm(matrix_file, minmat, ',')
+end
+
+function loop(keyword="stddev", some_range=1001:100000)
+    statsfile = statspath(keyword)
+    filestream = open(statsfile, "w")
+    try
+        for x in some_range
+            real_matrix_readpath = csvname("R",x)
+            imag_matrix_readpath = csvname("I",x)
+	    mdir = matdir(keyword)
+            matrix_filepath = "$(mkpath(mdir))/$x.csv"
+            matrix_filestream = open(matrix_filepath, "w+")
+            try
+                writetofile(real_matrix_readpath,
+                            imag_matrix_readpath,
+                            keyword,
+                            stats_file=filestream,
+                            matrix_file=matrix_filepath,
+                            prefix=x
+                           )
+            finally
+                close(matrix_filestream)
+            end
+        end
+    finally
+        close(filestream)
+    end
+    print("done")
+    return 0
+end
+
+if !isinteractive()
+    loop()
+end
+
