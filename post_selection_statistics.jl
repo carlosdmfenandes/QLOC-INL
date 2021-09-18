@@ -19,8 +19,9 @@ Lmat(n) = [i^j for i=0:n, j=0:n]
 
 "Calculate the coefficients given a list of angles."
 function anglestocoefs(angles)
-    n=length(angles) - 1
-    inv(Lmat(n))*angles
+    n = length(angles) - 1
+    coeffs = inv(Lmat(n))*angles
+    map(x -> rem2pi(x, RoundNearest), coeffs) # implement mod 2pi arithmetic
 end
 
 "Calculate amplitudes of the interfermeter up to n photons."
@@ -28,7 +29,7 @@ nsamplitudes(matrix, n) = [psamplitude(matrix, i) for i in 0:n]
 
 merit(array, key, args...) = get(MERIT_DICTS, key, nothing)(array, args)
 
-"Qunatify how far amplitudes are form having equal absolute value by
+"Quantify how far amplitudes are form having equal absolute value by
 adding the absolute value of the difference of absolute value from the first element."
 merit_probdiffs(parray) =  sum( abs.( abs.(parray[2:end]) .- abs(parray[1]) ) )#jl arrays start at 1
 
@@ -77,5 +78,3 @@ MERIT_DICTS = Dict(
     "angle" => merit_angle,
     "exp" => merit_exp,
     )
-
-#reduced_form(functon, n, args..) = x -> function(matrix_form(x,n), args...)

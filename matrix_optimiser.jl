@@ -7,31 +7,25 @@ include("csvread.jl")
 include("post_selection_statistics.jl")
 
 const HOME = homedir()
-const PROJDIR = "$HOME/Documents/Quantum_Information"
-const DIM = 4
-const FILESDIR = "$PROJDIR/random_matrices/dim_$DIM"
-const NUM = 2
-"Contains a list of functions and what to name the files
-this algorithm generates."
-ang = pi / 4
-NPHOTONS=2
-NNONLIN=2
+PARAMETERS_FILE = "pss_parameter_files/dim3-ph2-a.jl" 
+#File containing optimization parameters.
+include(PARAMETERS_FILE)
  
 "Determine the name of the file to import."
 csvname(dim, complex, suffix)="$FILESDIR/Unitary_2$(dim)$(complex)_example$suffix.csv"
 csvname(complex, suffix)=csvname(DIM, complex, suffix)
 
 "Determine the file path to export results."
-statspath(keyword, dim=DIM, dir=PROJDIR, uid=NUM)="$dir/random_matrices/ps$(dim)stats_$keyword$uid.csv"
+statspath(keyword, dim=DIM, dir=PROJDIR, uid=ID)="$dir/random_matrices/ps$(dim)stats_$keyword$uid.csv"
 
 "Find the directory matrix to export."
-matdir(keyword, dim=DIM, dir=PROJDIR, uid=NUM)="$dir/random_matrices/ps$(dim)_$keyword$uid"
+matdir(keyword, dim=DIM, dir=PROJDIR, uid=ID)="$dir/random_matrices/ps$(dim)_$keyword$uid"
 
 "Wrapper around optimize to convert matrices to parametrized form and back"
 function ps_optimizer(init_matrix, merit_function, function_args=(), optimizeargs...)
     inits = argument_form(init_matrix)
     result = optimize(inits, optimizeargs...) do x
-         merit_function(nsamplitudes(matrix_form(x), NNONLIN),
+         merit_function(nsamplitudes(matrix_form(x), NPHOTONS),
                         function_args...)
     end
     return result
@@ -49,13 +43,13 @@ the non-linear angle and the intererometer's success probability.
 function ps_results(optimization)
     min = Optim.minimizer(optimization)
     minmat = matrix_form(min, DIM)
-    amplitudevec = nsamplitudes(minmat, NNONLIN) 
+    amplitudevec = nsamplitudes(minmat, NPHOTONS) 
     mean_amplitude = mean(abs.(amplitudevec))
-    deviation = std(amplitudevec, mean=mean_amplitude)
+    deviation = std(abs.(amplitudevec), corrected=false, mean=mean_amplitude)
     rel_dev = deviation / mean_amplitude
     nonlinarg = anglestocoefs(angle.(amplitudevec))[NNONLIN]
     succ_prob = abs2(mean_amplitude)
-    minmat, [rel_dev; nonlinarg; succ_prob]
+    minmat, [rel_dev; succ_prob; nonlinarg]
 end
 
 """
@@ -67,22 +61,25 @@ It can also pass additional arguments to the function to_optimize.
 The files to which the results are to be written must be specified by the stats_file and matrix_file 
 keywords.
 """   
-function writetofile(real_path, imag_path, to_optimize,  args...; stats_file=devnull, matrix_file=devnull, prefix=nothing)
+function writetofile(real_path, imag_path, to_optimize,  args...; 
+                     stats_file=devnull, matrix_file=devnull, prefix=nothing)
     init_matrix = matread(real_path, imag_path)
     optimres = ps_optimizer(init_matrix, to_optimize, args...)
     minmat, data = ps_results(optimres)
     if isnothing(prefix)
-        writedlm(stats_file, data, ',')
+        writedlm(stats_file, reshape(data,1,:), ',')
     else 
-        writedlm(stats_file, [prefix; data], ',')
+        writedlm(stats_file, reshape(Any[prefix;data],1,:), ',') #data would be better as tuple. Rethink?
         println(matrix_file, prefix)
     end
     writedlm(matrix_file, minmat, ',')
 end
 
-function loop(keyword="stddev", some_range=1001:100000)
+function loop(keyword=FUNCTION_KEYWORD, some_range=RANGE)
     statsfile = statspath(keyword)
-    filestream = open(statsfile, "w")
+    filestream = open(statsfile, "w+")
+    header = ["index" "relative deviation" "success probability" "nonlinearity"]
+    writedlm(filestream, header, ',')
     try
         for x in some_range
             real_matrix_readpath = csvname("R",x)
