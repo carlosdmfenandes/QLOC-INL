@@ -2,6 +2,9 @@ using DelimitedFiles
 using LinearAlgebra
 using StatsPlots
 
+"""This code depends on existing precalculated random matrix files on the drive.
+It may be fixed to be more flexible."""
+
 q3= findmin(
         readdlm("/home/carlosfernandes/Documents/Quantum_Information/random_matrices/expectedN_3.csv",',')[:,4])
 q4= findmin(
