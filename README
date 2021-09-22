@@ -1,0 +1,20 @@
+"This text is temporary and it should be replaced by 
+something nicer and more detailed in the future."
+
+PURPOSE
+This repository contains files used by me and my coleagues for my doctoral project 
+on quantum linear optical computation at INL. 
+Our objective is to study linear quantum optical computers and their limitations. 
+Most of these files concern with the calculation of the permanent of a unitary matrix. 
+The permanent is considered a difficult calculations. The best general algorithms
+scale as N2^N.
+The permanent is necessary to simulated QLO systems.
+Often our matrix has repeated lines and columns. Under that assumption,
+the efficiency of the calculation can be improved.
+
+LICENSE
+All the code is owned by me. These file are licensed under the GNU GPLv2, 
+so feel free to make any changes for any purpose as long as they are 
+released under the same license.
+I might relicense this project under a less copyleft-y license in the
+future, but it will remain free.
