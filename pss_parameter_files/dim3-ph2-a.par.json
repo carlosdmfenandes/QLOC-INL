@@ -1,0 +1,12 @@
+[{"merit_keyword":"stddev",
+  "nonlinphots":2,
+  "nmodes":3,
+  "tolerance":0.01
+ },
+ {"id":"std-a",
+  "proj_dir":"~/Documents/Quantum_Information",
+  "file_path":"/home/carlosfernandes/Documents/Quantum_Information/random_matrices/dim_DIM",
+  "plot_title":"dim3-ph2-a",
+  "plot_dir":"/home/carlosfernandes/Documents/Quantum_Information/graphs"
+ }
+]

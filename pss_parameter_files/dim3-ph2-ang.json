@@ -1,0 +1,14 @@
+[
+    {"merit_keyword":"angle",
+     "nonlinphots":2,
+     "nmodes":3,
+     "tolerance":0.01,
+     "args":0.3
+     },
+    {"id":"std-ang0.3",
+     "proj_dir":"/home/carlosfernandes/Documents/Quantum_Information",
+     "import_dir":"/home/carlosfernandes/Documents/Quantum_Information/random_matrices/dim_3",
+     "plot_title":"dim3-ph2-ang0.3",
+     "plot_dir":"/home/carlosfernandes/Documents/Quantum_Information/graphs"
+    }
+] 

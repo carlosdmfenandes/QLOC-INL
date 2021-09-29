@@ -1,7 +1,8 @@
 """
 Benchmark performance of calculationof the permanent.
 Demonstrate performance boost for matrices with repeated
-lines and columns."""
+lines and columns.
+"""
 
 using BenchmarkTools
 

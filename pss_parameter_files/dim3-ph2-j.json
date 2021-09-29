@@ -1,0 +1,11 @@
+[
+{"merit_keyword":"stddev",
+"nonlinphots":2,
+"nmodes":3,
+"tolerance":0.01},
+{"id":"std-j",
+"proj_dir":"/home/carlosfernandes/Documents/Quantum_Information",
+"import_dir":"/home/carlosfernandes/Documents/Quantum_Information/random_matrices/dim_3",
+"plot_title":"dim3-ph2-j",
+"plot_dir":"/home/carlosfernandes/Documents/Quantum_Information/graphs"}
+]

@@ -1,11 +1,11 @@
 using Plots
 using DelimitedFiles
+import JSON
 
-const HOME = homedir()
-PARAMETERS_FILE="pss_parameter_files/dim3-ph2-a.jl" #File containing execution parameters
-include(PARAMETERS_FILE)
+TOLERANCE=0.01
 
-"Can this be rewritten to support other kinds of index?"
+"""Filter the data by selecting the data points for which the
+optimization conververged better than TOLERANCE."""
 function succ_filter(data, succ_data; tol=TOLERANCE)
     successes = data[succ_data.<tol, :]
     succ_rate = size(successes)[1]/size(data)[1]
@@ -19,20 +19,21 @@ function succ_filter(data, succ_index::Integer; tol=TOLERANCE)
     succ_filter(data, succ_data)
 end
 
-function succ_filter(data, succ_data, relat_data; tol=TOLERANCE)
+function succ_filter(data, succ_data, relat_data; tol=1)
     successes = data[(succ_data./relat_data).<tol, :]
     succ_rate = size(successes)[1]/size(data)[1]
     print("The success rate is $succ_rate.\n")
     return successes
 end
 
-function succ_filter(data, succ_index::Integer, relat_index::Integer; tol=TOLERANCE)
+function succ_filter(data, succ_index::Integer, relat_index::Integer; tol=1)
     succ_data = view(data, :, succ_index)
     relat_data = view(data, :, relative)
-    succ_filter(data, succ_data, relative=relat_data)
+    succ_filter(data, succ_data, relative=relat_data; tol=tol)
 end
 
-function dataplot(xdata, ydata...; plot_title=PLOT_TITLE) 
+"""Convinient shorthand for drawaing our plot."""
+function dataplot(xdata, ydata...; plot_title)
     the_plot = plot!(x->abs2(cos(2*x)+3)/16) #Plot the theoretical limit curve.
     for sdata in ydata
     the_plot = plot!(xdata, sdata, seriestype=:scatter,
@@ -41,16 +42,34 @@ function dataplot(xdata, ydata...; plot_title=PLOT_TITLE)
                      xlims=(-pi/2, pi/2), ylims=(0,1),
                      )
     end
-    return the_plot           
+    return the_plot
 end
 
-function quickplot(ang_index, prob_index, datafile=IMPNAME)
-    data = succ_filter(readdlm(datafile, ',', skipstart=1), 2) 
-    succplot = dataplot(data[:,ang_index], data[:,prob_index])
-    savefig(succplot, "$PLOTSDIR/succ_$(NAME)_$DIM.svg")
-    print("Plot saved to $PLOTSDIR/succ_$(NAME)_$DIM.svg\n")
+function quickplot(params, filepath; yindex=3, xindex=4)
+    data = succ_filter(readdlm(filepath, ',', skipstart=1), 2)
+    succplot = dataplot(data[:,xindex], data[:,yindex];
+                        plot_title=params.plot_title)
+    plotpath = "$(params.plot_dir)/succ_$(params.id)_$(params.plot_title).svg"
+    savefig(succplot, plotpath)
+    print("Plot saved to $plotpath. \n")
 end
 
-if !isinteractive()
-    quickplot(4,3)
+dicttonamedtuple(dic::AbstractDict) = (; zip(Symbol.(keys(dic)),values(dic))...)
+jsonimport(paramsfile) = dicttonamedtuple.(JSON.parsefile(paramsfile))[2]
+
+"""Copy-pasted form pss_importandrun.jl if you change it automatization
+breaks."""
+statspath(dir, dim, keyword, uid)="$dir/random_matrices/ps$(dim)stats_$keyword$uid.csv"
+
+function quickplot(jsonfile; kwargs...)
+    model, filedata = dicttonamedtuple.(JSON.parsefile(jsonfile))
+    datapath = statspath(filedata.proj_dir,
+                         model.nmodes,
+                         model.merit_keyword,
+                         filedata.id)
+    quickplot(filedata, datapath; kwargs...)
 end
+
+
+
+

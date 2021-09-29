@@ -18,7 +18,7 @@ to the generated angles."
 Lmat(n) = [i^j for i=0:n, j=0:n]
 
 "Calculate the coefficients given a list of angles."
-function anglestocoefs(angles)
+function anglestocoeffs(angles)
     n = length(angles) - 1
     coeffs = inv(Lmat(n))*angles
     map(x -> rem2pi(x, RoundNearest), coeffs) # implement mod 2pi arithmetic
@@ -38,27 +38,27 @@ calculating the standard deviation of the absolute value."
 merit_stddev(parray) = std(abs.(parray), corrected=false)
 
 "Calculate a merit function that favours large mean values."
-merit_lprob(parray, c=1.) = merit_stddev(parray) + c*(1-mean(parray))^2
+merit_lprob(parray, c=1.) = merit_stddev(parray) + c*(1-mean(abs.(parray)))^2
 
 "Calculate a merit function favouring a small 'nangle' angle."
 function merit_centre(parray, c=1., d=1., nangle=2)
     phases = angle.(parray)
-    angle = anglestocoefs(phases)[nangle]
-    merit_lprob(parray, c) + d*sin(angle)^2
+    phi = anglestocoeffs(phases)[nangle]
+    merit_lprob(parray, c) + d*sin(phi)^2
 end
 
 "Calculate a merit function favouring a large 'nangle' angle."
 function merit_sides(parray, c=1., d=1., nangle=2)
     phases = angle.(parray)
-    angle = anglestocoefs(phases)[nangle]
-    merit_lprob(parray, c) + d*cos(angle)^2
+    phi = anglestocoeffs(phases)[nangle]
+    merit_lprob(parray, c) + d*cos(phi)^2
 end
 
 "Calculate a merit function favouring the value phiangle for some 'nangle' angle."
-function merit_angle(parray, phiangle, c=1., d=1.,nangle=2)
+function merit_angle(parray, phiangle::AbstractFloat, c=1., d=1.,nangle=2)
     phases = angle.(parray)
-    angle = anglestocoefs(phases)[nangle]
-    merit_lprob(parray, c) + d*sin(angle-phiangle)^2
+    phi = anglestocoeffs(phases)[nangle]
+    merit_lprob(parray, c) + d*sin(phi-phiangle)^2
 end
 
 "Calculate a merit function that weighs variance exponentially.
@@ -68,7 +68,7 @@ function merit_exp(parray, a=1., c=1.)
     expm1(a*var) + c*(1-mean(parray))^2
 end
 
-MERIT_DICTS = Dict(
+const MERIT_DICTS = Dict(
     "probdiffs" => merit_probdiffs,
     "stddev" => merit_stddev,
     "lprob" => merit_lprob,
