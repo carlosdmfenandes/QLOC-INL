@@ -21,7 +21,19 @@ Lmat(n) = [i^j for i=0:n, j=0:n]
 function anglestocoeffs(angles)
     n = length(angles) - 1
     coeffs = inv(Lmat(n))*angles
-    map(x -> rem2pi(x, RoundNearest), coeffs) # implement mod 2pi arithmetic
+    map!(x -> rem2pi(x, RoundNearest), coeffs) # implement mod 2pi arithmetic
+end
+
+"Regularise the coeffs"
+function regulariseangles!(angles)
+    phi0 = angles[1]
+    for i in length(angles)
+        angles[i] -= phi0
+    end
+    for i in 2:length(angles)
+        angles[i] -= (i-1)*angles[i]
+    end
+    map!(x -> rem2pi(x, RoundNearest), angles)
 end
 
 "Calculate amplitudes of the interfermeter up to n photons."

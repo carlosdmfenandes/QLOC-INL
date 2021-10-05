@@ -16,6 +16,7 @@ matwritedir(dir, dim, keyword, uid)="$dir/random_matrices/ps$(dim)_$keyword$uid"
 "Covert a dictionary to a Named Tuple"
 dicttonamedtuple(dic::AbstractDict) = (; zip(Symbol.(keys(dic)),values(dic))...)
 
+symzip(dic)=zip(Symbol.(keys(dic)),values(dic))
 
 """
 Solve an optimization problem and write the results to a file. 
@@ -80,8 +81,27 @@ function calc(opt_params, file_params, some_range)
     return 0
 end
 
+#=This function is type unstable but it doesn't seem to have a 
+performance penalty compared to bare calc.
+=#
 function importandrun(paramsfile, irange)
     paramdata = dicttonamedtuple.(JSON.parsefile(paramsfile))
     (optpar, filespar) = (paramdata[1], paramdata[2]) 
     calc(optpar, filespar, irange)
 end
+
+#=
+
+Originally intended to correct type instabilities in importandrun, 
+but there seem not to be a performace penalty.
+
+include("parameter_type.jl")
+
+function importandrunstable(paramsfile, irange, args...)
+    paramdata = JSON.parsefile(paramsfile)
+    optpar = PssModel(; symzip(paramdata[1])... )
+    filespar = PssFiles(; symzip(paramdata[2])... ) 
+    calc(optpar, filespar, irange)
+end
+
+=#
