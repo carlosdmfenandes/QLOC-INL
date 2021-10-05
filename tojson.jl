@@ -1,14 +1,21 @@
 import JSON
 
-pfile ="pss_parameter_files/dim3-ph2-j.jl"
+if isinteractive()
+pfile = readline()
+else
+pfile = ARGS[1]
+end
 
 include(pfile)
 
-text = JSON.json([OPTPARAMS, FILEPARAMS])
+text = JSON.json([OPTPARAMS, FILEPARAMS], 1)
 path = "$(splitext(pfile)[1]).json"
 io = open(path, "w+")
-try
-    write(io, text)
-finally
-    close(io)
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    try
+        write(io, text)
+    finally
+        close(io)
+    end
 end
