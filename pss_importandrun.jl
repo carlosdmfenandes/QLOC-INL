@@ -90,6 +90,10 @@ function importandrun(paramsfile, irange)
     calc(optpar, filespar, irange)
 end
 
+if !isinteractive() && (abspath(PROGRAM_FILE) == @__FILE__)
+    importandrun(ARGS[1], ARGS[2])
+end
+
 #=
 
 Originally intended to correct type instabilities in importandrun, 
