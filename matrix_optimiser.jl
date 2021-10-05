@@ -8,7 +8,7 @@ include("post_selection_statistics.jl")
 
 "Wrapper around optimize to convert matrices to parametrized form and back"
 function ps_optimizer(init_matrix, merit_function, optimargs...; 
-                      nphotons=2, function_args=(), optimkwargs...)
+                      nphotons, function_args=(), optimkwargs...)
     inits = argument_form(init_matrix)
     result = optimize(inits, optimargs...; optimkwargs...) do x
         merit_function(nsamplitudes(matrix_form(x), nphotons),
@@ -26,7 +26,7 @@ returned by ps_optimizer.
 Return the minimal matrix and a vector containing the deviation form uniformity, 
 the non-linear angle and the interferometer's success probability.
 """
-function ps_results(optimization, nphotons=2)
+function ps_results(optimization; nphotons)
     min = Optim.minimizer(optimization)
     minmat = matrix_form(min) #Use explicit dimension if it breaks.
     amplitudevec = nsamplitudes(minmat, nphotons) 

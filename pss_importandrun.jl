@@ -29,11 +29,11 @@ keywords.
 """   
 function writetofile(real_path, imag_path, to_optimize,  args...; 
                      stats_file=devnull, matrix_file=devnull,
-                     prefix=nothing, nphotons=2, fargs=())
+                     prefix=nothing, nphotons, fargs=())
     init_matrix = matread(real_path, imag_path)
     optimres = ps_optimizer(init_matrix, to_optimize, args...; 
-                            function_args=fargs)
-    minmat, data = ps_results(optimres)
+                            nphotons=nphotons, function_args=fargs)
+    minmat, data = ps_results(optimres; nphotons=nphotons)
     if isnothing(prefix)
         writedlm(stats_file, reshape(data,1,:), ',')
     else 
