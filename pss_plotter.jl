@@ -1,7 +1,10 @@
 using Plots
 using DelimitedFiles
 import JSON
- 
+
+pgfplotsx()
+Plots.PGFPlotsXBackend()
+
 TOLERANCE=0.01
 
 """
@@ -47,6 +50,18 @@ function dataplot(xdata, ydata...; plot_title, width=pi/2)
     return the_plot
 end
 
+function dataplot3D(xdata, ydata, zdata; plot_title, 
+                                         xwidth=pi/2, ywidth=pi/2)
+    the_plot = plot!(xdata, ydata, zdata,
+                     xlabel="square coeff", ylabel="cubic coeff", 
+                     zlabel="Probability",
+                     seriestype=:scatter, markersize=1.5,
+                     legend=:none, title=plot_title,
+                     xlims=(-xwidth, xwidth), ylims=(-ywidth, ywidth),
+                     zlims=(0,1),
+                     )
+end
+
 """Utility script designed to automatize plotting."""
 function quickplot(params, filepath; yindex=3, xindex=4, 
                                      width=pi/2, format = "svg")
@@ -74,6 +89,27 @@ function quickplot(jsonfile; kwargs...)
                          model.merit_keyword,
                          filedata.id)
     quickplot(filedata, datapath; kwargs...)
+end
+
+function quickplot3D(params, filepath; xindex=4, yindex=5, zindex=3,
+                                        width=pi/2) 
+    data = succ_filter(readdlm(filepath, ',', skipstart=1), 2)
+    succplot = dataplot3D(data[:,xindex], data[:,yindex], 
+                          data[:,zindex];
+                          plot_title=params.plot_title, 
+                          xwidth=width, ywidth=width)
+    plotpath = "$(params.plot_dir)/succ_$(params.id)_$(params.plot_title)"
+    savefig(succplot, plotpath)
+    println("Plot saved to \'$plotpath\'.")
+end
+
+function quickplot3D(jsonfile; kwargs...)
+    model, filedata = dicttonamedtuple.(JSON.parsefile(jsonfile))
+    datapath = statspath(filedata.proj_dir,
+                         model.nmodes,
+                         model.merit_keyword,
+                         filedata.id)
+    quickplot3D(filedata, datapath; kwargs...)
 end
 
 if !isinteractive() && (abspath(PROGRAM_FILE) == @__FILE__)
