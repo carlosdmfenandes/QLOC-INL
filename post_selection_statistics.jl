@@ -13,6 +13,19 @@ function psamplitude(matrix, nphotons)
     rmultipermanent(matrix, a, a)/factorial(nphotons)
 end
 
+"""Defines a weighted sum of itr, weighted by weights."""
+function sumweighted(f::Function, itr, weights)
+    sum = zero( first(weights)*f(first(itr)) )
+    for (i,w) in zip(itr, weights)
+        sum += w*f(i)
+    end
+    sum
+end
+
+sumweighted(itr, weights) = sumweighted(identity, itr, weights)
+sumweighted(f::Function, itr) = sum(f, itr)
+sumweighted(itr) = sum(itr)
+
 "Generate the matrix relating the polynomial coefficients
 to the generated angles."
 Lmat(n) = [i^j for i=0:n, j=0:n]
@@ -27,12 +40,12 @@ end
 "Regularise the coeffs"
 function regulariseangles!(angles)
     phi0 = angles[1]
-    for i in length(angles)
+    for i in 1:length(angles)
         angles[i] -= phi0
     end
-    for i in 2:length(angles)
-        angles[i] -= (i-1)*angles[i]
-    end
+#for i in 2:length(angles)
+    #angles[i] -= (i-1)*angles[i]
+#end
     map!(x -> rem2pi(x, RoundNearest), angles, angles)
 end
 
@@ -53,21 +66,21 @@ merit_stddev(parray) = std(abs.(parray), corrected=false)
 merit_lprob(parray, c=1.) = merit_stddev(parray) + c*(1-mean(abs.(parray)))^2
 
 "Calculate a merit function favouring a small 'nangle' angle."
-function merit_centre(parray, c=1., d=1., nangle=2)
+function merit_centre(parray; c=1., d=1., nangle=2)
     phases = angle.(parray)
     phi = anglestocoeffs(phases)[nangle]
     merit_lprob(parray, c) + d*sin(phi)^2
 end
 
 "Calculate a merit function favouring a large 'nangle' angle."
-function merit_sides(parray, c=1., d=1., nangle=2)
+function merit_sides(parray; c=1., d=1., nangle=2)
     phases = angle.(parray)
     phi = anglestocoeffs(phases)[nangle]
     merit_lprob(parray, c) + d*cos(phi)^2
 end
 
 "Calculate a merit function favouring the value phiangle for some 'nangle' angle."
-function merit_angle(parray, phiangle::AbstractFloat, c=1., d=1.,nangle=2)
+function merit_angle(parray; phiangle::AbstractFloat, c=1., d=1.,nangle=2)
     phases = angle.(parray)
     phi = anglestocoeffs(phases)[nangle]
     merit_lprob(parray, c) + d*sin(phi-phiangle)^2
@@ -75,11 +88,32 @@ end
 
 "Calculate a merit function that weighs variance exponentially.
 (and hopefully priotizes its minimization above other parameters.)."
-function merit_exp(parray, a=1., c=1.)
+function merit_exp(parray; a=1., c=1.)
     variance = var(abs.(parray), corrected=false)
     expm1(a*var) + c*(1-mean(parray))^2
 end
 
+"""Calculate a merit function imposing predetermined angles"""
+#=
+function merit_setphases(parray, phases, weights, c=1)
+    phasediff = angle.(parray) - phases
+    regulariseangles!(phasediff)
+    merit_lprob(parray) + c*sum(abs2, phasediff)
+end
+=#
+function merit_setphases(parray; phases, c, weights)
+    phasediff = angle.(parray) - phases
+    regulariseangles!(phasediff)
+    merit_lprob(parray) + c*sumweighted(abs2, phasediff, weights)
+end
+
+function merit_setphases(parray; phases, weights)
+    phasediff = angle.(parray) - phases
+    regulariseangles!(phasediff)
+    merit_lprob(parray) + sumweighted(abs2, phasediff, weights)
+end
+
+#merit_setphases(parray, phases) = merit_setphases(parray, phases)
 const MERIT_DICTS = Dict(
     "probdiffs" => merit_probdiffs,
     "stddev" => merit_stddev,
@@ -89,4 +123,5 @@ const MERIT_DICTS = Dict(
     "sides" => merit_sides,
     "angle" => merit_angle,
     "exp" => merit_exp,
+    "setphases" => merit_setphases
     )

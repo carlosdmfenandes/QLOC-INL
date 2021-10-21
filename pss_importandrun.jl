@@ -27,12 +27,12 @@ It can also pass additional arguments to the function to_optimize.
 The files to which the results are to be written must be specified by the stats_file and matrix_file 
 keywords.
 """   
-function writetofile(real_path, imag_path, to_optimize,  args...; 
+function writetofile(real_path, imag_path, to_optimize,  args=(); 
                      stats_file=devnull, matrix_file=devnull,
-                     prefix=nothing, nphotons, fargs=())
+                     prefix=nothing, nphotons, fargs=NamedTuple())
     init_matrix = matread(real_path, imag_path)
     optimres = ps_optimizer(init_matrix, to_optimize, args...; 
-                            nphotons=nphotons, function_args=fargs)
+                            nphotons=nphotons, function_args=fargs...)
     minmat, data = ps_results(optimres; nphotons=nphotons)
     if isnothing(prefix)
         writedlm(stats_file, reshape(data,1,:), ',')
@@ -43,33 +43,55 @@ function writetofile(real_path, imag_path, to_optimize,  args...;
     writedlm(matrix_file, minmat, ',')
 end
 
-function calc(opt_params, file_params, some_range)
-    statsfile = statspath(file_params.proj_dir,
+"""
+Takes the optimization parameters and reads the 
+arguments to be passed to the merit function.
+"""
+function arg_manager(opt_params)
+    keyword=opt_params.merit_keyword
+    if keyword == "setpar"  
+        return (opt_params.setangs, opt_params.weights)
+    else
+        return ()
+    end
+end
+
+"""
+Takes named tuples or structs of parameters and solves the 
+optimization sampling problem. some_range specifies the 
+range of matrices stored as files to use.
+"""
+function calc(opt_params, file_params, some_range; fargs=NamedTuple())
+    statsfile = statspath(
+                file_params.proj_dir,
                 opt_params.nmodes,
                 opt_params.merit_keyword,
-                file_params.id)
+                file_params.id
+                )
     filestream = open(statsfile, "w+")
     csvdir= "$(file_params.proj_dir)/random_matrices/dim_$(opt_params.nmodes)" 
     header = ["index" "relative deviation" "success probability" "nonlinearity"]
     writedlm(filestream, header, ',')
     try
         for x in some_range
-            real_matrix_readpath = csvname(file_params.import_dir, opt_params.nmodes, "R",x)
-            imag_matrix_readpath = csvname(file_params.import_dir, opt_params.nmodes, "I",x)
+            real_matrix_readpath = csvname(file_params.import_dir,
+                                           opt_params.nmodes, "R",x)
+            imag_matrix_readpath = csvname(file_params.import_dir,
+                                           opt_params.nmodes, "I",x)
             mwdir = matwritedir(file_params.proj_dir, opt_params.nmodes, 
-                          opt_params.merit_keyword, file_params.id)
+                               opt_params.merit_keyword, file_params.id)
             matrix_filepath = "$(mkpath(mwdir))/$x.csv"
             matrix_filestream = open(matrix_filepath, "w+")
             try
                 writetofile(real_matrix_readpath,
                             imag_matrix_readpath,
                             opt_params.merit_keyword;
-                            fargs = get(opt_params, :args, ()),
+                            fargs = fargs,
                             nphotons = opt_params.nonlinphots,
                             stats_file=filestream,
                             matrix_file=matrix_filepath,
                             prefix=x
-                           )
+                            )
             finally
                 close(matrix_filestream)
             end
@@ -85,9 +107,15 @@ end
 performance penalty compared to bare calc.
 =#
 function importandrun(paramsfile, irange)
-    paramdata = dicttonamedtuple.(JSON.parsefile(paramsfile))
-    (optpar, filespar) = (paramdata[1], paramdata[2]) 
-    calc(optpar, filespar, irange)
+    jsondicts = JSON.parsefile(paramsfile)
+    if length(jsondicts) == 3
+        fargs = convert(Dict{String, Vector{Int}} ,jsondicts[3])
+    else
+        fargs = Dict{}
+    end
+    paramdata = dicttonamedtuple.(jsondicts)
+    (optpar, filespar) = (paramdata[1], paramdata[2])
+    calc(optpar, filespar, irange; fargs=fargs)
 end
 
 if !isinteractive() && (abspath(PROGRAM_FILE) == @__FILE__)
@@ -95,9 +123,8 @@ if !isinteractive() && (abspath(PROGRAM_FILE) == @__FILE__)
 end
 
 #=
-
 Originally intended to correct type instabilities in importandrun, 
-but there seem not to be a performace penalty.
+but there seems not to be a difference in performace .
 
 include("parameter_type.jl")
 

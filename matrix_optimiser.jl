@@ -8,10 +8,10 @@ include("post_selection_statistics.jl")
 
 "Wrapper around optimize to convert matrices to parametrized form and back"
 function ps_optimizer(init_matrix, merit_function, optimargs...; 
-                      nphotons, function_args=(), optimkwargs...)
+                      nphotons, function_args=NamedTuple(), optimkwargs...)
     inits = argument_form(init_matrix)
     result = optimize(inits, optimargs...; optimkwargs...) do x
-        merit_function(nsamplitudes(matrix_form(x), nphotons),
+        merit_function(nsamplitudes(matrix_form(x), nphotons);
                        function_args...)
         end
     return result
