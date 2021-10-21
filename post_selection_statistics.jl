@@ -63,7 +63,7 @@ calculating the standard deviation of the absolute value."
 merit_stddev(parray) = std(abs.(parray), corrected=false)
 
 "Calculate a merit function that favours large mean values."
-merit_lprob(parray, c=1.) = merit_stddev(parray) + c*(1-mean(abs.(parray)))^2
+merit_lprob(parray; c=1.) = merit_stddev(parray) + c*(1-mean(abs.(parray)))^2
 
 "Calculate a merit function favouring a small 'nangle' angle."
 function merit_centre(parray; c=1., d=1., nangle=2)

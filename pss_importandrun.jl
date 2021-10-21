@@ -32,7 +32,7 @@ function writetofile(real_path, imag_path, to_optimize,  args=();
                      prefix=nothing, nphotons, fargs=NamedTuple())
     init_matrix = matread(real_path, imag_path)
     optimres = ps_optimizer(init_matrix, to_optimize, args...; 
-                            nphotons=nphotons, function_args=fargs...)
+                            nphotons=nphotons, function_args=fargs)
     minmat, data = ps_results(optimres; nphotons=nphotons)
     if isnothing(prefix)
         writedlm(stats_file, reshape(data,1,:), ',')
@@ -61,6 +61,7 @@ Takes named tuples or structs of parameters and solves the
 optimization sampling problem. some_range specifies the 
 range of matrices stored as files to use.
 """
+#IT'S A FUCKING MESS
 function calc(opt_params, file_params, some_range; fargs=NamedTuple())
     statsfile = statspath(
                 file_params.proj_dir,
@@ -110,8 +111,9 @@ function importandrun(paramsfile, irange)
     jsondicts = JSON.parsefile(paramsfile)
     if length(jsondicts) == 3
         fargs = convert(Dict{String, Vector{Int}} ,jsondicts[3])
+        fargs = dicttonamedtuple(fargs)
     else
-        fargs = Dict{}
+        fargs = NamedTuple
     end
     paramdata = dicttonamedtuple.(jsondicts)
     (optpar, filespar) = (paramdata[1], paramdata[2])
