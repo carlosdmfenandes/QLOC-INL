@@ -11,6 +11,7 @@ scale as N2^N.
 The permanent is necessary to simulated QLO systems.
 Often our matrix has repeated lines and columns. Under that assumption,
 the efficiency of the calculation can be improved.
+The code is set free so that it can be inspected by anyone interested.
 
 LICENSE
 All the code is owned by me. These file are licensed under the GNU GPLv2, 
