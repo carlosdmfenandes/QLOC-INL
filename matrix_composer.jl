@@ -6,7 +6,7 @@ include("Reck-Oxford.jl")
 "Take a vector of parameter and returns a
 dim*dim matrix by oxford composition.
 The inverse of argument form."
-function matrix_form(vec::Vector{Float64}, dim)
+@views function matrix_form(vec::Vector{<:Real}, dim)
     array_size = (length(vec)-dim)÷2 #determines the number of BeamSplitters
     phvec = vec[1:dim] #Interpret slice as free phase angles
     mixes = vec[dim+1:dim+array_size] #Interpret slice as BS mixing angle
@@ -17,7 +17,7 @@ function matrix_form(vec::Vector{Float64}, dim)
 end
 
 "Deduce dimension from the intended matrix form the length of the argument vector."
-function matrix_form(vec::Vector{Float64})   
+function matrix_form(vec)
     n = isqrt(length(vec))
     matrix_form(vec, n)
 end

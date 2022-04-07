@@ -90,7 +90,7 @@ end
 (and hopefully priotizes its minimization above other parameters.)."
 function merit_exp(parray; a=1., c=1.)
     variance = var(abs.(parray), corrected=false)
-    expm1(a*var) + c*(1-mean(parray))^2
+    expm1(a*var) + c*(1-mean(abs.(parray)))^2
 end
 
 """Calculate a merit function imposing predetermined angles"""
@@ -101,16 +101,10 @@ function merit_setphases(parray, phases, weights, c=1)
     merit_lprob(parray) + c*sum(abs2, phasediff)
 end
 =#
-function merit_setphases(parray; phases, c, weights)
+function merit_setphases(parray; phases, c=1, d=1, weights)
     phasediff = angle.(parray) - phases
     regulariseangles!(phasediff)
-    merit_lprob(parray) + c*sumweighted(abs2, phasediff, weights)
-end
-
-function merit_setphases(parray; phases, weights)
-    phasediff = angle.(parray) - phases
-    regulariseangles!(phasediff)
-    merit_lprob(parray) + sumweighted(abs2, phasediff, weights)
+    merit_lprob(parray; c=c) + c*sumweighted(abs2, phasediff, weights)
 end
 
 #merit_setphases(parray, phases) = merit_setphases(parray, phases)

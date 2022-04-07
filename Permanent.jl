@@ -49,28 +49,23 @@ function decompose(number::Integer)
 end
 """
 
-"Best Optimized implementation of the Permanent"
-function permanent(matrix, ::Val{c}) where {c}
+"Ryser implementation of the Permanent"
+function rpermanent(matrix, ::Val{c}) where {c}
     T = eltype(matrix)
     length = c ? big(size(matrix,1)) : size(matrix,1)
     column = zeros(T,length)
     total = zero(T)
     par=1
-    for i in 1:(2^length-1)
+    @inbounds for i in 1:(2^length-1)
         par *= -1
         pos, sign = grayBitToFlip(i)
-        LinearAlgebra.axpy!(sign,view(matrix,:,pos), column)
+        LinearAlgebra.axpy!(sign, view(matrix, :, pos), column)
         #column += sign*view(matrix, :, pos)
         total += par*prod(column)
     end
     total = total*partosign(length)
     return total
 end
-
-permanent(matrix) = permanent(matrix, Val(false))
-#Guarantee Integer results for matrices of integers.
-mydiv(a::Integer, b::Integer) = div(promote(a,b)...) 
-mydiv(a, b) = a/b
 
 "Permanent by Glynn's formula. Could still be optimized."
 function gpermanent(matrix, ::Val{c}) where {c}
@@ -90,13 +85,54 @@ function gpermanent(matrix, ::Val{c}) where {c}
     return total
 end
 
+permanent(matrix) = permanent(matrix, Val(false))
+#Guarantee Integer results for matrices of integers.
+mydiv(a::Integer, b::Integer) = div(promote(a,b)...)
+mydiv(a, b) = a/b
 gpermanent(matrix) = gpermanent(matrix, Val(false))
 
-"Find the next flip in generalized gray code for an hyperparalelogram."
-function multiGrayBitToFlip(x, vector=ones(Int, 64))
-    for (pos, n) in enumerate(vector)
-        rem = x%(n+1)
-        if rem != 0
+
+"Permanent by Glynn's formula."
+function permanent(matrix)
+    length = size(matrix,1)
+    lenfac = 2^(length-1)
+    column = sum(matrix, dims=2)
+    column ./= 2
+    total = prod(column)
+    @inbounds for i in 1:(lenfac-1)
+        pos, sign = grayBitToFlip(i)
+        if sign == 1
+            @simd for j in 1:length
+                column[j] -= matrix[j, pos]
+            end
+        else
+            @simd for j in 1:length
+                column[j] += matrix[j, pos]
+            end
+        end
+        prd = one(eltype(column))
+        @simd for j in 1:length
+            prd *= column[j]
+        end
+        total += partosign(i)*prd
+    end
+    total *= 2
+    return total
+end
+
+"""
+multiGrayBitToFlip(x, dimensions)
+Find the next flip in generalized gray code for an hyperparalelogram.
+Defauls to regular gray code of dimensions is ommited.
+Returns a tuple (pos, sign, start)
+where:
+    pos is the position of the changing digit,
+    sign is 1 if the digit increases and -1 if it decreases
+    start is the value of the digit before the change.
+"""
+function multiGrayBitToFlip(x, dimensions=Iterators.repeated(1,64))
+    for (pos, n) in enumerate(dimensions)
+        if (rem = x%(n+1)) != 0
             par = div(x,n+1) & 1
             sign = partosign(par)
             start = par*n + sign*(rem-1)
@@ -112,13 +148,13 @@ Implement prod(bases .^ exps) with fewer allocations.
 """
 function prodbe(bases, exps)
     result = one(eltype(bases))
-    for (i,j) in zip(bases, exps)  
+    for (i,j) in zip(bases, exps)
         result *= i^j
     end
     return result
 end
 
-"""Calculate the permanent with multiple lines and 
+"""Calculate the permanent with multiple lines and
 columns by the modified Ryser's Formula."""
 function rmultipermanent(matrix::AbstractMatrix, fargs, yargs, ::Val{false})
     fvector = Tuple(fargs)
@@ -181,7 +217,7 @@ rmultipermanent(matrix) = rmultipermanent(matrix,
 
 multipermanent(args...) = rmultipermanent(args...)
 
-"""The same as rmultipermanent but does less memory allocations and 
+"""The same as rmultipermanent but does less memory allocations and
 takes somewhat longer for small matrices."""
 function altrmultipermanent(matrix::AbstractMatrix, fargs, yargs)
     fvector = Tuple(fargs)
@@ -191,14 +227,14 @@ function altrmultipermanent(matrix::AbstractMatrix, fargs, yargs)
     column = zeros(T, length)
     total = zero(T)
     par = 1
-    fac = 1
+    bincoef = 1
     prodfac = prod(x -> x+1, fvector)
     for i in 1:(prodfac-1)
         par *= -1
         pos, sign, val = multiGrayBitToFlip(i, fvector)
         n = fvector[pos]
         k = div(1 - sign, 2)*n + sign*val
-        fac = div((n - k)*fac, k + 1)
+        bincoef = (n - k)*fac ÷ (k + 1)
         LinearAlgebra.axpy!(sign, view(matrix, :, pos), column)
         #column += sign*view(matrix, :, pos)
         total += par*fac*prodbe(column, yvector)
