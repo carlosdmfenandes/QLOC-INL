@@ -2,11 +2,11 @@ module QLOC
 
 using LinearAlgebra
 
-import Base: *, transpose, inv, conj
+import Base: *, transpose, inv, conj, size, rand
 
 export BeamSplitter
 
-struct BeamSplitter <: AbstractSparseMatrix{ComplexF64, Int}
+struct BeamSplitter <: AbstractMatrix{ComplexF64}
     m::Int
     n::Int
     phase::Float64
@@ -25,7 +25,7 @@ inv(bs::BeamSplitter) =
     BeamSplitter(bs.m, bs.n, -bs.phase, bs.rangle, !bs.transposed)
 conj(bs::BeamSplitter) =
     BeamSplitter(bs.m, bs.n, -bs.phase, bs.rangle, bs.transposed)
-
+size(bs::BeamSplitter) = ntuple(x -> max(bs.m, bs.n), Val(2))
 
 "Multiply a matrix by a beamsplitter to the left in place."
 function x!(mat::AbstractVecOrMat{ComplexF64}, bs::BeamSplitter)
@@ -50,10 +50,23 @@ function x!(bs::BeamSplitter, mat::AbstractVecOrMat)
     x!(Transpose(mat), cb)
     return mat
 end
+#=
+"Extend rand to BeamSplitters."
+function rand(BeamSplitter, (n, m), transpose=true)
+    BeamSplitter(m, n, 2*pi*rand(), 2*pi*rand(), transpose)
+end
 
+"Generate random BS acting on random modes. Code is straightfoward
+but could be made to call the RNG only once."
+function rand(BeamSplitter, M::Integer, transpose=true)
+    n = rand(1:M)
+    d = rand(1:(M-1))
+    m = (n+d)%M
+    rand(bs, (n, m), transpose)
+end
+=#
 "Extend matrix multiplication to include Beam Splitters."
-*(A::AbstractArray, B::AbstractArray) = A * B
-*(A::BeamSplitter, B::AbstractArray) = x!(A, deepcopy(B))
-*(A::AbstractArray, B::BeamSplitter) = x!(deepcopy(A), B)
+*(A::BeamSplitter, B::AbstractMatrix) = x!(A, copy(B))
+*(A::AbstractMatrix, B::BeamSplitter) = x!(copy(A), B)
 
 end
