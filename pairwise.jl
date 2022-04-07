@@ -1,4 +1,4 @@
-"""
+#=
  * Copyright 2022 carlosfernandes <carlosfernandes@protonmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
  * MA 02110-1301, USA.
-"""
+=#
 
 """
 Take the next term of the sum according to Glynn's Formula.
@@ -47,32 +47,25 @@ end
 
 """
 Do the pairwise summation.
-With some refactoring it coulbe generalized
-to a lazy pairwise summation could be
-generalised to any lazy iterator.
+With some refactoring it could be generalized to a lazy pairwise
+summation over any iterator.
 """
 function pairwise(matrix)
     length = size(matrix)[1]
     nterms = 2^(length-1)
     storage = Vector{eltype(matrix)}(undef, length)
-    addr = 1 #points to the largest occupied
+    addr = 0 #points to the largest occupied
     column = sum(matrix, dims=2)
     column ./= 2
     count = 0 #counts the number of iterations passed
-    for i in 1:(nterms÷2+1)
+    for i in 1:((nterms+1)÷2)
         addr += 1
-        if count < nterms
-            term, count = iter!(column, count, matrix)
-        else
-            term = zero(eltype(column))
-        end
+        term, count = iter!(column, count, matrix)
         storage[addr] = term
         if count < nterms
             term, count = iter!(column, count, matrix)
-        else
-            term = zero(eltype(column))
+            storage[addr] += term
         end
-        storage[addr] += term
         for j in 1:trailing_zeros(i)
             addr -= 1
             storage[addr] += storage[addr + 1]
@@ -85,6 +78,7 @@ function pairwise(matrix)
     2*storage[1]
 end
 
+#=
 """
 A incomplete implementation of an iterator
 
@@ -122,5 +116,5 @@ function iterate(it::Glynniter)
     end
     total += partosign(i)*prd
 end
-
 """
+=#
