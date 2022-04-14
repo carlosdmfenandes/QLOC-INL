@@ -50,15 +50,15 @@ Do the pairwise summation.
 With some refactoring it could be generalized to a lazy pairwise
 summation over any iterator.
 """
-function pairwise(matrix)
-    length = size(matrix)[1]
-    nterms = 2^(length-1)
+function pairwise_permantent(matrix)
+    length::UInt = size(matrix)[1]
+    nterms::UInt = 2^(length-1)
     storage = Vector{eltype(matrix)}(undef, length)
     addr = 0 #points to the largest occupied
     column = sum(matrix, dims=2)
     column ./= 2
     count = 0 #counts the number of iterations passed
-    for i in 1:((nterms+1)÷2)
+    @inbounds for i in 1:((nterms+1)÷2)
         addr += 1
         term, count = iter!(column, count, matrix)
         storage[addr] = term
@@ -71,11 +71,41 @@ function pairwise(matrix)
             storage[addr] += storage[addr + 1]
         end
     end
-    while addr>1
+    @inbounds while addr>1
+        addr -= 1
+        storage[addr] += storage[addr + 1]
+    endas
+    2*storage[1]
+    end
+end
+
+function pairwise(terms_iter)
+    T::Type=Float64
+    len::UInt = length(terms_iter)
+    storagesize = 8*sizeof(len) - leading_zeros(len)
+    storage = Vector{T}(undef, storagesize)
+    addr = 0
+#    sumcount = 1
+#    assign_next = true
+    @inbounds for (i,t) in enumerate(terms_iter)
+        if isodd(i)
+            addr += 1
+            storage[addr] = t
+        else
+            storage[addr] += t
+            for j in 1:trailing_zeros(i>>1)
+                addr -= 1
+                storage[addr] += storage[addr + 1]
+            end
+#            sumcount += 1
+        end
+#        assign_next = !assign_next
+    end
+    @inbounds while addr>1
         addr -= 1
         storage[addr] += storage[addr + 1]
     end
-    2*storage[1]
+    storage[1]
 end
 
 #=
