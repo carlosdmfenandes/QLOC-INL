@@ -1,4 +1,4 @@
-function sylvester(exp)
+function sylvester_matrix(exp)
     base = [1]
     mat = [1 1; 1 -1]
     for i in 1:exp
