@@ -2,7 +2,35 @@ module UnsafePermutes
 
 import Base: iterate, eltype, length
 
-export Permutes
+export Permutes, Permutation, PairTransposition, PermTuple
+export NearTransposition
+
+"Abstract supertype of all types representing permutations."
+abstract type Permutation end
+
+"""
+Represents a transposition of ith element of a collection with the
+(i+1)th.
+"""
+struct NearTransposition <: Permutation
+    i::Integer
+end
+
+"""
+Represents the transposition of ith element of a collection with the
+jth element.
+"""
+struct PairTransposition <: Permutation
+    i::Integer
+    j::Integer
+end
+
+"""
+Represents the transposition of an array with N elements.
+"""
+struct PermTuple{N, Ti<:Integer} <: Permutation
+    perm::NTuple{N, Ti}
+end
 
 """
 Find the position of the transposition that generates the (i+1)th
@@ -63,21 +91,84 @@ end
 
 end
 
+module SafePermutes
 
-#=
-function easyperm(array::AbstractArray)
-    len = length(array)
-    tot = factorial(len)
-    res = first(array)
-    i=1
-    @inbounds while i<tot
-        j = transposition(i, len)
-        temp = array[j]
-        array[j] = array[j+1]
-        array[j+1] = temp
-        i += 1
-        res += first(array)
-    end
-    res
+import Base: iterate, eltype, length
+
+export Permutes, Permutation, PairTransposition, PermTuple
+export NearTransposition
+
+"Abstract supertype of all types representing permutations."
+abstract type Permutation end
+
+"""
+Represents a transposition of ith element of a collection with the
+(i+1)th.
+"""
+struct NearTransposition <: Permutation
+    i::Integer
 end
-=#
+
+"""
+Represents the transposition of ith element of a collection with the
+jth element.
+"""
+struct PairTransposition <: Permutation
+    i::Integer
+    j::Integer
+end
+
+"""
+Represents the transposition of an array with N elements.
+"""
+struct PermTuple{N, Ti<:Integer} <: Permutation
+    perm::NTuple{N, Ti}
+end
+
+"""
+Find the position of the transposition that generates the (i+1)th
+element of the set of permutations of N elements.
+The transposition exchanges the i and i+1 elements.
+"""
+function transposition(i, N)
+    ret = zero(N)
+    d = N
+    q, r = divrem(i, N)
+    p = isodd(q)
+    while iszero(r)
+        d -= 1
+        p && (ret += 1)
+        q, r = divrem(q, d)
+        p = isodd(q)
+    end
+    ret += p ? r : (d - r)
+end
+
+struct Permutes{A<:AbstractArray, N<:Integer}
+    array::A
+end
+
+Permutes(a::AbstractArray) = Permutes(a, convert(Int, length(a)) )
+eltype(p::Permutes{A, N}) where {A, N} = A
+length(p::Permutes{A, N}) where {A, N} = factorial(N)
+
+@inline function iterate(p::Permutes{A, N}) where {A, N}
+    E = eltype(p.array)
+    ntup = NTuple{N, E}(p.array)
+    (ntup, 0)
+end
+@inline function iterate(p::Permutes{A, N}, state) where {A,N}
+    newstate=state+1
+    newstate>=length(p) && (return nothing)
+    j = transposition(newstate, N)
+    @inbounds begin
+        a = p.array[j]
+        p.array[j] = p.array[j+1]
+        p.array[j+1] = a
+    end
+    E = eltype(p.array)
+    ntup = NTuple{N, E}(p.array)
+    return ntup, newstate
+end
+
+end
