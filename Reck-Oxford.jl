@@ -1,5 +1,31 @@
+
+@warn """
+
+    DIRECT USE OF "Reck-Oxford.jl" IS DEPRECATED.
+    USE QLOC MODULE INSTEAD.
+    """
+
+
+
 using LinearAlgebra
 
+"""
+```
+struct BeamSplitter
+    m::Int
+    n::Int
+    phase::Float64
+    rangle::Float64
+    transposed::Bool
+
+end
+```
+
+A type representing a BeamSplitter together with a phase shifter.
+The first two fields `m` and `n` represent the modes coupled by the
+Beamsplitter.
+
+"""
 struct BeamSplitter
     m::Int
     n::Int
@@ -12,7 +38,7 @@ BeamSplitter(m, n, phase, rangle) = BeamSplitter(m, n, phase, rangle, false)
 BeamSplitter(m, n) = BeamSplitter(m, n, 0, 0, false)
 BeamSplitter() = BeamSplitter(1, 2, 0, 0, false)
 
-"Define standard operations on a beam splitter."
+"Define standard matrix operations on a beam splitter."
 transpose(bs::BeamSplitter) =
     BeamSplitter(bs.m, bs.n, bs.phase, bs.rangle, !bs.transposed)
 inverse(bs::BeamSplitter) =
@@ -20,7 +46,7 @@ inverse(bs::BeamSplitter) =
 conjugate(bs::BeamSplitter) =
     BeamSplitter(bs.m, bs.n, -bs.phase, bs.rangle, bs.transposed)
 
-"Multiply a matrix by a beamsplitter to the left in place."
+"Multiply a matrix by a beamsplitter to the right in place."
 function x!(mat::AbstractVecOrMat{ComplexF64}, bs::BeamSplitter)
     ph = cis(bs.phase)
     s, c = sincos(bs.rangle)
@@ -37,7 +63,7 @@ function x!(mat::AbstractVecOrMat{ComplexF64}, bs::BeamSplitter)
     return mat
 end
 
-"Multiply a matrix by a beamsplitter to the right in place."
+"Multiply a matrix by a beamsplitter to the left in place."
 function x!(bs::BeamSplitter, mat::AbstractVecOrMat)
     cb = transpose(bs)
     x!(Transpose(mat), cb)
@@ -49,9 +75,12 @@ end
 ⊙(A::BeamSplitter, B::AbstractArray) = x!(A, deepcopy(B))
 ⊙(A::AbstractArray, B::BeamSplitter) = x!(deepcopy(A), B)
 
-"Eliminate the matrix element at coordinates 'n,m' by multiplying a beam splitter.
+"""
+Eliminate the matrix element at coordinates 'n, m' by multiplying a
+beam splitter.
 The beamsplitter pivots on line k if multiplied at the left or
-at column k if multiplied at the right."
+at column k if multiplied at the right.
+"""
 function elim(mat, n, m, k, left=true)
     dim = size(mat)[1]
     c = mat[n, m]
@@ -71,9 +100,30 @@ function elim(mat, n, m, k, left=true)
     return bs
 end
 
+"Represents a unitary matrix in Oxford decomposed form."
+struct OxfordDecomp
+    bsvec::Vector{BeamSplitter}
+    diag::Vector{ComplexF64}
+end
+
+"""
+`OxfordDecomp(mat::Matrix{T<:Number})`
+
+Return an OxfordDecomp object giving the oxford decomposition of
+a unitary matrix `mat`.
+"""
+function OxfordDecomp(mat::Matrix{<:Number})
+    resmat = copy(mat)
+    bsvec = oxford!(resmat)
+    matdiag = diag(resmat)
+    OxfordDecomp(bsvec, matdiag)
+end
+
+Matrix(od::OxfordDecomp) = compose!(od.bs, Diagonal(od.diag))
+
 #left kills with lines; right with columns
 "Decompose the matrix using the Oxford decomposition as in the article
-
+(*cite article here*)
 This function transforms a unitary matrix into a unitary diagonal matrix.
 It returns an array of the beam spillters used to decompose the matrix."
 function oxford!(mat::AbstractMatrix)
@@ -161,3 +211,4 @@ function oxfordarray(bsphases, bsmixing, dim)
     end
     return vector
 end
+
