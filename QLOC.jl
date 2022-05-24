@@ -1,11 +1,12 @@
 module QLOC
 
-import Base: *, transpose, inv, conj, size, rand
+import Base: *, transpose, inv, conj, size, rand, getindex, show, Matrix
 
-export BeamSplitter
+export BeamSplitter, OxfordDecomp, btoQTikz, diagonality, qtikzbody
 
-include("permanent.jl")
-include("pairwise.jl")
+include("Permanent.jl")
 include("beamsplitter.jl")
+include("reck-oxford.jl")
+
 end
 
