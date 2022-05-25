@@ -112,7 +112,7 @@ function oxfordarray(bsphases, bsmixing, dim)
     y = 1
     dir = 1
     i = 1
-    while x<dim && y <dim
+    while x<dim && y<dim
         # eliminate entries in the lower triangle in "zigzag" order.
         if left
             bs = BeamSplitter(dim-x+1, dim-x, bsphases[i], bsmixing[i])
@@ -135,4 +135,3 @@ function oxfordarray(bsphases, bsmixing, dim)
     end
     return vector
 end
-
