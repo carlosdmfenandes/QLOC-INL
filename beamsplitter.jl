@@ -258,6 +258,3 @@ struct SimpleBS
     n::Int
     rangle::Float64
 end
-
-
-

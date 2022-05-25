@@ -37,7 +37,7 @@ Return an OxfordDecomp object giving the oxford decomposition of
 a unitary matrix `mat`.
 """
 function OxfordDecomp(mat::Matrix{<:Number})
-    resmat = copy(mat)
+    resmat = Matrix{ComplexF64}(mat)
     bsvec = oxford!(resmat)
     matdiag = diag(resmat)
     OxfordDecomp(bsvec, matdiag)
