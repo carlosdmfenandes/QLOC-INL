@@ -1,4 +1,5 @@
 # Part of QLOC.jl package
+
 using LinearAlgebra
 using Printf
 
@@ -51,15 +52,15 @@ function getindex(bs::BeamSplitter, inds...)
     s::ComplexF64, c::ComplexF64 = sincos(bs.rangle)
     if vinds[1] == bs.m
         if vinds[2] == bs.m
-            res = s * ph
+            res = c * ph
         elseif vinds[2] == bs.n
-            res = c
+            res = bs.transposed ? s*ph : -s
         end
     elseif vinds[1] == bs.n
         if vinds[2] == bs.m
-            res = c * ph
+            res = bs.transposed ? -s : s*ph
         elseif vinds[2] == bs.n
-            res = -s
+            res = c
         end
     elseif vinds[1] == vinds[2]
         res = one(ComplexF64)
@@ -74,11 +75,11 @@ Construct the 2*2 unitary Matrix representation of a `BeamSplitter`.
 Note however that, in general, `bs*A != Matrix(bs)*A`.
 """
 function Matrix(bs::BeamSplitter)
-    s, c = sincos(bs.rangle);
-    ph = cis(bs.phase);
-    mat = ComplexF64[ c*ph -s ;
-                      s*ph  c ]
-    bs.transposed ? transpose(mat) : mat
+    mat =  Matrix{ComplexF64}(undef, 2, 2);
+    mat[1,1] = bs[1,1]
+    mat[1,2] = bs[1,2]
+    mat[2,1] = bs[2,1]
+    mat[2,2] = bs[2,2]
 end
 # Define standard operations on a beam splitter.
 
@@ -105,12 +106,15 @@ function x!(mat::AbstractVecOrMat{ComplexF64}, bs::BeamSplitter)
     end
     return mat
 end
-
+#=
+x!(mat::AbstractMatrix, bs::BeamSplitter) =  x!(convert(Matrix{ComplexF64}, mat), bs)
+x!(mat::AbstractVector, bs::BeamSplitter) =  x!(convert(Vector{ComplexF64}, mat), bs)
+=#
 "Multiply a matrix by a beamsplitter to the left in place."
-function x!(bs::BeamSplitter, mat::AbstractVecOrMat)
+function x!(bs::BeamSplitter, mat::AbstractVecOrMat{ComplexF64})
     cb = transpose(bs)
     x!(Transpose(mat), cb)
-    return mat
+    mat
 end
 #=
 "Extend rand to BeamSplitters."
@@ -127,15 +131,19 @@ function rand(BeamSplitter, M::Integer, transpose=true)
     rand(bs, (n, m), transpose)
 end
 =#
-"Extend matrix multiplication to include Beam Splitters."
-*(A::BeamSplitter, B::AbstractArray) = x!(A, copy(B))
-*(A::AbstractArray, B::BeamSplitter) = x!(copy(A), B)
 
+"Extend matrix multiplication to include Beam Splitters."
+*(A::BeamSplitter, B::AbstractMatrix) = x!(A, Matrix{ComplexF64}(B))
+*(A::BeamSplitter, B::AbstractVector) = x!(A, Vector{ComplexF64}(B))
+*(A::AbstractMatrix, B::BeamSplitter) = x!(Matrix{ComplexF64}(A), B)
+*(A::AbstractVector, B::BeamSplitter) = x!(Vector{ComplexF64}(A), B)
+
+#=
 "
 Convert an array of beam splitters to code for the QTikz LaTeX package
 that draws a diagram of the array.
 "
-function btoQTikz(body::Vector{String})
+function toQTikz(body::Vector{String})
     preamble = [
         raw"\documentclass[tikz]{standalone}",
         raw"\usepackage{tikz}",
@@ -152,11 +160,13 @@ function btoQTikz(body::Vector{String})
     join(append!(preamble, beginwrapper, body, endwrapper), '\n')
 end
 
+toQTikz(x) = toQTikz(qtikzbody(x))
+
 "
 Return the body of a qtikz block representing an array `bsvec` of
 BeamSplitter objects.
 "
-function qtikzbody(bsvec, header=[])
+function qtikzbody(bsvec, header=[])::Vector{String}
     nlines = maximum(bs->max(bs.n, bs.m), bsvec)
     mstr = [[""] for i=1:nlines]
     for (l, h) in zip(mstr, header)
@@ -192,8 +202,14 @@ function qtikzcell(bs::BeamSplitter, row_num::Int)
         if bs.transposed
             str = """
                 \\gate[$(hi-low+1)]{$(anglestring)} &&
+                 \\gate[1]{$(phstring)}
+                """
+        else
+            str = """
+                \\gate[1]{$(phstring)} &&
                  \\gate[$(hi-low+1)]{$(anglestring)}
                 """
+        end
     elseif low < row_num < hi
         str = raw"\strikethrough && \strikethrough"
     else
@@ -201,6 +217,16 @@ function qtikzcell(bs::BeamSplitter, row_num::Int)
     end
     str
 end
+
+function qtikzphaseline(phases, nlines::Int)
+    mstr = [[""] for i=1:nlines]
+    for (ph, strvec) in zip(phases, mstr)
+        phstring = @sprintf("%4.2f", ph)
+        phgate = "\\gate[1]{$(phstring)}"
+        push!(strvec, phgate)
+    return strvec
+end
+=#
 
 #=
 DeadCode
@@ -212,14 +238,15 @@ Return the diagonality of `mat` as given by the norm function `fnorm`.
 """
 diagonality(fnorm::Function, mat::Matrix) = fnorm(diag(mat))/fnorm(mat)
 diagonality(mat::Matrix) = diagonality(norm, mat)
+=#
 
 "
 Represent a phase shifter acting on a single optical mode `m`,
 shifting by a given `phase`.
 "
 struct PhaseShifter
-    phase::Float64
     m::Int
+    phase::Float64
 end
 
 "
@@ -231,5 +258,6 @@ struct SimpleBS
     n::Int
     rangle::Float64
 end
-=#
+
+
 
