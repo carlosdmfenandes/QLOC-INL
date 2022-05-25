@@ -85,7 +85,6 @@ function pairwise(terms_iter)
     storagesize = 8*sizeof(len) - leading_zeros(len)
     storage = Vector{T}(undef, storagesize)
     addr = 0
-#    sumcount = 1
 #    assign_next = true
     @inbounds for (i,t) in enumerate(terms_iter)
         if isodd(i)
@@ -97,9 +96,7 @@ function pairwise(terms_iter)
                 addr -= 1
                 storage[addr] += storage[addr + 1]
             end
-#            sumcount += 1
         end
-#        assign_next = !assign_next
     end
     @inbounds while addr>1
         addr -= 1
