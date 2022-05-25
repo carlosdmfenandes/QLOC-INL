@@ -121,14 +121,18 @@ function permanent(matrix)
 end
 
 """
-multiGrayBitToFlip(x, dimensions)
-Find the next flip in generalized gray code for an hyperparalelogram.
-Defauls to regular gray code of dimensions is ommited.
-Returns a tuple (pos, sign, start)
-where:
-    pos is the position of the changing digit,
-    sign is 1 if the digit increases and -1 if it decreases
-    start is the value of the digit before the change.
+`
+multiGrayBitToFlip(x::Integer, dimensions)
+`
+
+Find the changed digit of the `x`th iteration in generalized gray code
+for an hyperparalelogram of given `dimensions`.
+Defauls to regular 64-bit gray code if dimensions is ommited.
+
+Returns a tuple `(pos, sign, start)` where:
+- `pos` is the position of the changing digit,
+- `sign` is 1 if the digit increases and -1 if it decreases
+- `start` is the value of the digit before the change.
 """
 function multiGrayBitToFlip(x, dimensions=Iterators.repeated(1,64))
     for (pos, n) in enumerate(dimensions)
@@ -143,16 +147,16 @@ function multiGrayBitToFlip(x, dimensions=Iterators.repeated(1,64))
     throw(DomainError(x))
 end
 
-"""
-Implement prod(bases .^ exps) with fewer allocations.
-"""
-function prodbe(bases, exps)
-    result = one(eltype(bases))
-    for (i,j) in zip(bases, exps)
-        result *= i^j
-    end
-    return result
+#=
+struct MultiGray{N}
+    dimensions::NTuple{N, Int}
 end
+
+iterate(iter::MultiGray{N} where N) = (ntuple(x->0, N), zeroes(Bool,5))
+function iterate(iter::MultiGray{N} where N, state)
+
+end
+=#
 
 """Calculate the permanent with multiple lines and
 columns by the modified Ryser's Formula."""
@@ -242,6 +246,7 @@ function altrmultipermanent(matrix::AbstractMatrix, fargs, yargs)
     total = total*partosign(length)
     return total
 end
+
 #----The code below is untested----
 
 "Calculate the factor in the next iteration
