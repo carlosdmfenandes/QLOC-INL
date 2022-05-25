@@ -5,8 +5,6 @@
     USE QLOC MODULE INSTEAD.
     """
 
-
-
 using LinearAlgebra
 
 """
