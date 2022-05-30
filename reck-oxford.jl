@@ -2,10 +2,13 @@
 
 using LinearAlgebra
 
-"Eliminate the matrix element at coordinates 'n,m' by multiplying a beam splitter.
+"""
+Eliminate the matrix element at coordinates 'n,m' by multiplying a beam
+splitter.
 The beamsplitter pivots on line k if multiplied at the left or
-at column k if multiplied at the right."
-function elim(mat, n, m, k, left=true)
+at column k if multiplied at the right.
+"""
+function elim!(mat, n, m, k, left=true)
     dim = size(mat)[1]
     c = mat[n, m]
     if left
@@ -46,10 +49,12 @@ end
 Matrix(od::OxfordDecomp) = compose!(od.bsvec, collect(Diagonal(od.diag)))
 
 #left kills with lines; right with columns
-"Decompose the matrix using the Oxford decomposition as in the article
+"
+Decompose the matrix using the Oxford decomposition as in the article
 (*cite article here*)
 This function transforms a unitary matrix into a unitary diagonal matrix.
-It returns an array of the beam spillters used to decompose the matrix."
+It returns an array of the beam spillters used to decompose the matrix.
+"
 function oxford!(mat::AbstractMatrix)
     n = size(mat)[1]
     bsplitters = BeamSplitter[]
@@ -57,13 +62,10 @@ function oxford!(mat::AbstractMatrix)
     x = 1
     y = 1
     dir = 1
-    while x<n && y <n
+    while x<n && y<n
         # eliminate entries in the lower triangle in "zigzag" order.
-        if left
-            bs = elim(mat, n-x+1, y, n-x, left)
-        else
-            bs = elim(mat, n-x+1, y, y+1, left)
-        end
+        pivot = left ? n-x : y+1
+        bs = elim!(mat, n-x+1, y, pivot, left)
         push!(bsplitters, bs)
         x += dir
         y -= dir
@@ -80,9 +82,11 @@ function oxford!(mat::AbstractMatrix)
     return bsplitters
 end
 
-"Compose an interferometer with beam splitters and phase shifters according to
+"
+Compose an interferometer with beam splitters and phase shifters according to
 the Oxford prescription. Inverts the Oxford! function if given its output as the
-arguments."
+arguments.
+"
 function compose!(array::Vector{BeamSplitter}, matrix)
     for j in Iterators.reverse(array)
         j.transposed ? x!(matrix, inv(j)) : x!(inv(j), matrix)
@@ -102,8 +106,11 @@ function compose(array::Vector{BeamSplitter})
     compose!(array, matrix)
 end
 
-"Builds a beam splitter according to the Oxford construction from array of variables.
-Intended for use with the optimize function of the Optims.jl package."
+"
+Builds an array of beam splitters according to the Oxford construction
+from an array of parameter variables.
+Intended for use with the optimize function of the Optims.jl package.
+"
 function oxfordarray(bsphases, bsmixing, dim)
     nsplits = div(dim*(dim-1), 2)
     vector = Vector{BeamSplitter}(undef, nsplits)
