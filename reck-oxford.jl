@@ -3,25 +3,25 @@
 using LinearAlgebra
 
 """
-Eliminate the matrix element at coordinates 'n,m' by multiplying a beam
+Eliminate the matrix element at coordinates '(m, n)' by multiplying a beam
 splitter.
 The beamsplitter pivots on line k if multiplied at the left or
 at column k if multiplied at the right.
 """
-function elim!(mat, n, m, k, left=true)
+function elim!(mat, m, n, k, left=true)
     dim = size(mat)[1]
-    c = mat[n, m]
+    c = mat[m, n]
     if left
-        a = mat[k, m]
+        a = mat[k, n]
         rang = atan(abs(c) , abs(a))
         ph = abs2(a) <= 0.0 ? 0.0 : -angle(c/a)
-        bs = BeamSplitter(n, k, ph, rang)
+        bs = BeamSplitter(m, k, ph, rang)
         x!(bs, mat)
     else
-        a = mat[n, k]
+        a = mat[m, k]
         rang = atan(abs(c) , abs(a))
         ph = abs2(a) <= 0.0 ? 0.0 : angle(-c/a)
-        bs = BeamSplitter(k, m, ph, rang, true)
+        bs = BeamSplitter(k, n, ph, rang, true)
         x!(mat, bs)
     end
     return bs
