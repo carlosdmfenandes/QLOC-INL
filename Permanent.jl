@@ -194,7 +194,7 @@ function rmultipermanent(matrix::AbstractMatrix, fargs, yargs, ::Val{false})
         k = dir ? n-val : val
         column += dir ? -colview : colview
         fac = div((n - k)*fac, k + 1)
-        product = fac*prod(x -> x[1]^x[2], zip(column, yvector))
+        product = fac*prod(i^j for (i,j) in zip(column, yvector))
         total += isodd(i) ? -product : product
     end
     total = isodd(length) ? -total : total
@@ -237,7 +237,7 @@ rmultipermanent(matrix) = rmultipermanent(matrix,
                                           ones(Int, size(matrix,1))
                                           )
 
-multipermanent(args...) = rmultipermanent(args...)
+multipermanent = rmultipermanent
 
 """The same as rmultipermanent but does less memory allocations and
 takes somewhat longer for small matrices."""
