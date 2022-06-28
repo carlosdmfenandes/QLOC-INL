@@ -129,24 +129,38 @@ Find the changed digit of the `x`th iteration in generalized gray code
 for an hyperparalelogram of given `dimensions`.
 Defauls to regular 64-bit gray code if dimensions is ommited.
 
-Returns a tuple `(pos, sign, start)` where:
+Returns a tuple `(pos, dir, start)` where:
 - `pos` is the position of the changing digit,
-- `sign` is 1 if the digit increases and -1 if it decreases
+- `dir` is 0 if the digit increases and 1 if it decreases,
 - `start` is the value of the digit before the change.
 """
 function multiGrayBitToFlip(x, dimensions=Iterators.repeated(1,64))
     for (pos, n) in enumerate(dimensions)
         if (rem = x%(n+1)) != 0
-            par = div(x,n+1) & 1
-            sign = partosign(par)
-            start = par*n + sign*(rem-1)
-            return pos, sign, start
+            dir = isodd(div(x, n+1))
+            start = dir ? n + 1 - rem : rem - 1
+            return pos, dir, start
         end
         x = div(x,n+1)
     end
     throw(DomainError(x))
 end
 
+
+function altmultiGrayBitToFlip(x, dimensions=Iterators.repeated(1,64))
+    for (pos, n) in enumerate(dimensions)
+        if (rem = x%(n+1)) != 0
+            par = div(x, n+1) & 1
+            sign = partosign(par)
+            start = par*n + sign*(rem-1)
+            # dir = isodd(div(x, n+1))
+            # start = dir ? n + 1 - rem : rem - 1
+            return pos, sign, start
+        end
+        x = div(x,n+1)
+    end
+    throw(DomainError(x))
+end
 #=
 struct MultiGray{N}
     dimensions::NTuple{N, Int}
@@ -158,8 +172,10 @@ function iterate(iter::MultiGray{N} where N, state)
 end
 =#
 
-"""Calculate the permanent with multiple lines and
-columns by the modified Ryser's Formula."""
+"""
+Calculate the permanent with multiple lines and
+columns by the modified Ryser's Formula.
+"""
 function rmultipermanent(matrix::AbstractMatrix, fargs, yargs, ::Val{false})
     fvector = Tuple(fargs)
     yvector = Tuple(yargs)
@@ -172,37 +188,39 @@ function rmultipermanent(matrix::AbstractMatrix, fargs, yargs, ::Val{false})
     prodfac = prod(x -> x+1, fvector)
     for i in 1:(prodfac-1)
         par *= -1
-        pos, sign, val = multiGrayBitToFlip(i, fvector)
+        pos, dir, val = multiGrayBitToFlip(i, fvector)
         n = fvector[pos]
-        k = div(1 - sign, 2)*n + sign*val
+        colview = view(matrix, :, pos)
+        k = dir ? n-val : val
+        column += dir ? -colview : colview
         fac = div((n - k)*fac, k + 1)
-        LinearAlgebra.axpy!(sign, view(matrix, :, pos), column)
-        #column += sign*view(matrix, :, pos)
-        total += par*fac*prod(column .^ yvector)
+        product = fac*prod(x -> x[1]^x[2], zip(column, yvector))
+        total += isodd(i) ? -product : product
     end
-    total = total*partosign(length)
+    total = isodd(length) ? -total : total
     return total
 end
 
-"""The same as above, but employing arbitrary precision integers, in case of
-overflow."""
+"""
+The same as above, but more robust in case of overflow.
+"""
 function rmultipermanent(matrix::AbstractMatrix, fvector, yvector, ::Val{true})
-    length = size(matrix,1)
     T = big(eltype(matrix))
+    length = size(matrix, 1)
     column, total = zeros(T, length), zero(T)
-    fac, prodfac = BigInt(1), prod(fvector .+ 1)
-    par = 1
+    fac = one(BigInt)
+    prodfac = prod(fvector .+ 1)
     for i in 1:(prodfac-1)
-        par *= -1
         pos, sign, val = multiGrayBitToFlip(i, fvector)
         n = fvector[pos]
         k = div(1 - sign, 2)*n + sign*val
-        fac = div((n - k)*fac, k + 1)
-        #println(log2(fac)) Everything is okay.
+        fac = div((n - k)*fac, k + 1, RoundNearest)
+        #println(fac) Everything is okay.
         LinearAlgebra.axpy!(sign, view(matrix, :, pos), column)
         #column += sign*view(matrix, :, pos)
         product = prod(column .^ yvector)
-        total += par*fac*product
+        normprod = fac*product
+        total += isodd(i) ? -normprod : normprod
     end
     total = total*partosign(length)
     return total
@@ -238,7 +256,7 @@ function altrmultipermanent(matrix::AbstractMatrix, fargs, yargs)
         pos, sign, val = multiGrayBitToFlip(i, fvector)
         n = fvector[pos]
         k = div(1 - sign, 2)*n + sign*val
-        bincoef = (n - k)*fac ÷ (k + 1)
+        fac = (n - k)*fac ÷ (k + 1)
         LinearAlgebra.axpy!(sign, view(matrix, :, pos), column)
         #column += sign*view(matrix, :, pos)
         total += par*fac*prodbe(column, yvector)
