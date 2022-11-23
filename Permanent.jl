@@ -3,7 +3,7 @@ using LinearAlgebra
 #multPow2(n, m) = n << m
 #remPow2(n, m) = n & (multPow2(2, m)-1)
 "Implement (-1)^x more efficently."
-partosign(x) = 1 - ((x & 1 ) << 1)
+partosign(x) = isodd(x) ? -1 : 1
 
 "Convert a binary number n to its Gray code representation."
 bitToGray(n) = n ⊻ (n>>>1)
@@ -17,7 +17,6 @@ function grayBitToFlip(n::Integer)
     j = trailing_zeros(d) + 1
     return j, sign
 end
-
 
 """
 function grayBitToFlip2(n::Integer)
@@ -53,17 +52,17 @@ end
 function rpermanent(matrix, ::Val{c}) where {c}
     T = eltype(matrix)
     length = c ? big(size(matrix,1)) : size(matrix,1)
-    column = zeros(T,length)
+    column = zeros(T, length)
     total = zero(T)
     par=1
     @inbounds for i in 1:(2^length-1)
         par *= -1
         pos, sign = grayBitToFlip(i)
-        LinearAlgebra.axpy!(sign, view(matrix, :, pos), column)
-        #column += sign*view(matrix, :, pos)
+        #LinearAlgebra.axpy!(sign, view(matrix, :, pos), column)
+        sign > 0 ? column += view(matrix, :, pos) : column -= view(matrix, :, pos)
         total += par*prod(column)
     end
-    total = total*partosign(length)
+    total *= partosign(length)
     return total
 end
 
@@ -177,24 +176,24 @@ Calculate the permanent with multiple lines and
 columns by the modified Ryser's Formula.
 """
 function rmultipermanent(matrix::AbstractMatrix, fargs, yargs, ::Val{false})
-    fvector = Tuple(fargs)
-    yvector = Tuple(yargs)
     T = eltype(matrix)
+    istate = Tuple(fargs)
+    ostate = Tuple(yargs)
     length = size(matrix,1)
     column = zeros(T, length)
     total = zero(T)
     par = 1
     fac = 1
-    prodfac = prod(x -> x+1, fvector)
+    prodfac = prod(x -> x+1, istate)
     for i in 1:(prodfac-1)
         par *= -1
-        pos, dir, val = multiGrayBitToFlip(i, fvector)
-        n = fvector[pos]
-        colview = view(matrix, :, pos)
+        pos, dir, val = multiGrayBitToFlip(i, istate)
+        n = istate[pos]
         k = dir ? n-val : val
+        colview = view(matrix, :, pos)
         column += dir ? -colview : colview
         fac = div((n - k)*fac, k + 1)
-        product = fac*prod(i^j for (i,j) in zip(column, yvector))
+        product = fac*prod(i^j for (i,j) in zip(column, ostate))
         total += isodd(i) ? -product : product
     end
     total = isodd(length) ? -total : total
@@ -236,8 +235,6 @@ rmultipermanent(matrix) = rmultipermanent(matrix,
                                           ones(Int, size(matrix,1)),
                                           ones(Int, size(matrix,1))
                                           )
-
-multipermanent = rmultipermanent
 
 """The same as rmultipermanent but does less memory allocations and
 takes somewhat longer for small matrices."""
@@ -313,3 +310,5 @@ end
 
 gmultipermanent(matrix, args...) = gmultipermanent(ComplexF64.(matrix), args...)
 gmultipermanent(matrix) = gmultipermanent(matrix, ones(Int, size(matrix,1)))
+
+multipermanent = rmultipermanent
